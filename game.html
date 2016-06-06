@@ -6,8 +6,10 @@
   <span id = "riddle">Please wait. The game has not started.</span>
   <br>
   <input type="text" id="ans">
+  <br>
+  <span id="timer">Time Left: </span>
   <script>
-  //Deal with the socket connections
+  // Deal with the socket connections
   var usrname = window.location.toString().split("?username=")[1]
   var ws = new WebSocket("ws://localhost:7000", usrname);
   ws.onopen = function(e) {
@@ -39,32 +41,38 @@
     // Prepare question answer sets
     var q = [];
     var a = [];
+    var given_a = [];
     for(var i=0; i!=2; i++) {
       var s1 = Math.floor(Math.random()*8);
       var s2 = Math.floor(Math.random()*8);
       q.push(s1 + " + " + s2 + " = ");
       a.push(s1+s2);
+      given_a.push(-1.90);
     }
 
     // Now put those questions to the user
     var currentQ = 0;
-    var given_a = [];
     document.getElementById("riddle").innerHTML = q[0];
+    timer(10, function() {
+      document.getElementById("ans").removeEventListener('keypress', r1Handler);
+      for(var i=0; i!=a.length; i++) {
+        round1Score+=a[i]==given_a[i]?1:0;
+      }
+      ws.send(""+round1Score);
+    }, function(s) {
+      document.getElementById("timer").innerHTML = "Time Left: " + (10-s);
+    });
     var r1Handler = function(e) {
+      if(currentQ>q.length) return;
       if(e.which+""!=13) return;
       var ans = parseInt(document.getElementById("ans").value);
       document.getElementById("ans").value="";
       given_a[currentQ] = ans;
       currentQ++;
-      if(currentQ == q.length) {
-        document.getElementById("ans").removeEventListener('keypress', r1Handler);
-        for(var i=0; i!=a.length; i++) {
-          round1Score+=a[i]==given_a[i]?1:0;
-        }
-        //alert(round1Score);
-        ws.send(""+round1Score);
+      if(currentQ==q.length) {
+        document.getElementById("riddle").innerHTML = "Please wait for next round.";
         return;
-      }
+      };
       document.getElementById("riddle").innerHTML = q[currentQ];
     };
     document.getElementById("ans").addEventListener('keypress', r1Handler);
@@ -85,19 +93,24 @@
     var currentQ = 0;
     var given_a = [];
     document.getElementById("riddle").innerHTML = q[0];
+    timer(10, function() {
+      document.getElementById("ans").removeEventListener('keypress', r2Handler);
+      for(var i=0; i!=a.length; i++) {
+        round2Score+=a[i]==given_a[i]?1:0;
+      }
+      ws.send(""+round2Score);
+    }, function(s) {
+      document.getElementById("timer").innerHTML = "Time Left: " + (10-s);
+    });
     var r2Handler = function(e) {
+      if(currentQ>q.length) return;
       if(e.which+""!=13) return;
       var ans = parseInt(document.getElementById("ans").value);
       document.getElementById("ans").value="";
       given_a[currentQ] = ans;
       currentQ++;
       if(currentQ == q.length) {
-        document.getElementById("ans").removeEventListener('keypress', r2Handler);
-        for(var i=0; i!=a.length; i++) {
-          round2Score+=a[i]==given_a[i]?1:0;
-        }
-        alert(round2Score);
-        ws.send(""+round2Score);
+        document.getElementById("riddle").innerHTML = "Please wait for next game.";
         return;
       }
       document.getElementById("riddle").innerHTML = q[currentQ];
@@ -105,6 +118,20 @@
     document.getElementById("ans").addEventListener('keypress', r2Handler);
   }
 
+  function timer(interval, callbackEnd, callPerSecond) {
+    var initialTime = Date.now();
+    // Interval should be in seconds
+    //Call per second gets the diff as well
+    var _timer = setInterval(function() {
+      var diff = Date.now() - initialTime;
+      callPerSecond.call(this, Math.floor(diff/1000));
+      if((diff/1000)>=interval) {
+        clearInterval(_timer);
+        callbackEnd.call(this);
+      }
+    }, 900);
+  }
+  // timer(10, function() {alert("bro")}, function(s) {document.body.innerHTML = "" + s});
   </script>
 </body>
 </html>
