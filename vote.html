@@ -1,0 +1,67 @@
+<html>
+<head>
+  <title>Votes game</title>
+</head>
+<body>
+  <span id = "type"></span>
+  <div id="voting" style="display:none; ">
+    <form name="selection">
+      <input type="radio" name="choice" value="A" id="A"><label for="A" id="lA">A</label><br>
+      <input type="radio" name="choice" value="B" id="B"><label for="B" id="lB">B</label><br>
+    </form>
+    See what others have voted for:
+    <span id="others-vote"></span>
+  </div>
+  <br>
+  <span id="timer">Time Left: </span>
+  <script>
+  // Deal with the socket connections
+  var usrname = window.location.toString().split("?username2=")[1]
+  var ws = new WebSocket("ws://localhost:7000", usrname);
+  ws.onopen = function(e) {
+    ws.onmessage = dealMessage;
+  };
+  ws.onerror = function(e) {
+    alert("Error".toString());
+  };
+  var type;
+  var fellows;
+  function dealMessage(e) {
+    console.log(e.data);
+    var message = e.data.toString();
+    if(message.indexOf("#TYPE:")==0) {
+      type = message.substring(6);
+      document.getElementById("type").innerHTML = type;
+      return;
+    }
+    if(message.indexOf("#NAMES:")==0) {
+      if(type!="Mantri") return;
+      fellows = message.substring(7).split(",");
+      console.log(fellows.toString());
+    }
+    if(message.indexOf("#VOTE:")==0) {
+      if(type!="Mantri") return;
+      document.getElementById("voting").style.display ='block';
+      var c1 = message.split(":")[1].split(",")[0]
+      var c2 = message.split(":")[1].split(",")[1]
+      document.getElementById("A").value=c1;
+      document.getElementById("B").value=c2;
+      document.getElementById("lA").innerHTML = c1;
+      document.getElementById("lB").innerHTML = c2;
+      // Add handlers for the radio buttons
+      // Need to write dynamic handlers instead of static....
+      var voteHandle = function(e) {
+        var selected = document.selection.choice.value;
+        ws.send("#VOTING_FOR:" + selected);
+        console.log(selected);
+        ws.send("#DONE_VOTING");
+        document.getElementById("A").removeEventListener("click", voteHandle);
+        document.getElementById("B").removeEventListener("click", voteHandle);
+      };
+      document.getElementById("A").addEventListener("click", voteHandle);
+      document.getElementById("B").addEventListener("click", voteHandle);
+    }
+  }
+  </script>
+</body>
+</html>
