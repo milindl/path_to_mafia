@@ -15,6 +15,22 @@
   <br>
   <span id="timer">Time Left: </span>
   <script>
+  //timer
+  function timer(interval, callbackEnd, callPerSecond) {
+    var initialTime = Date.now();
+    // Interval should be in seconds
+    //Call per second gets the diff as well
+    var _timer = setInterval(function() {
+      var diff = Date.now() - initialTime;
+      callPerSecond.call(this, Math.floor(diff/1000));
+      if((diff/1000)>=interval) {
+        clearInterval(_timer);
+        callbackEnd.call(this);
+      }
+    }, 900);
+  }
+  </script>
+  <script>
   // Deal with the socket connections
   var usrname = window.location.toString().split("?username2=")[1]
   var ws = new WebSocket("ws://localhost:7000", usrname);
@@ -26,10 +42,12 @@
   };
   var type;
   var fellows;
+  var round;
   function dealMessage(e) {
     console.log(e.data);
     var message = e.data.toString();
     if(message.indexOf("#TYPE:")==0) {
+      round="#type";
       type = message.substring(6);
       document.getElementById("type").innerHTML = type;
       return;
@@ -40,6 +58,7 @@
       console.log(fellows.toString());
     }
     if(message.indexOf("#VOTE:")==0) {
+      round="#vote";
       if(type!="Mantri") return;
       document.getElementById("voting").style.display ='block';
       var c1 = message.split(":")[1].split(",")[0]
@@ -53,13 +72,36 @@
       var voteHandle = function(e) {
         var selected = document.selection.choice.value;
         ws.send("#VOTING_FOR:" + selected);
-        console.log(selected);
+      };
+      var endVote = function() {
         ws.send("#DONE_VOTING");
         document.getElementById("A").removeEventListener("click", voteHandle);
         document.getElementById("B").removeEventListener("click", voteHandle);
-      };
+      }
+      timer(10, endVote, function(s) {
+        document.getElementById('timer').innerHTML = "Time Left: "+(10-s)
+      });
       document.getElementById("A").addEventListener("click", voteHandle);
       document.getElementById("B").addEventListener("click", voteHandle);
+    }
+    if(message.indexOf("#VOTING_FOR:")==0) {
+      if(round!="#vote" || type!="Mantri") return;
+      var voter = message.split(":")[1].split(" for ")[0];
+      var votee = message.split(":")[1].split(" for ")[1];
+      if(!document.getElementById(voter)) {
+        document.getElementById("others-vote").innerHTML += '<span id="'+voter+'"></span>';
+      }
+      document.getElementById(voter).innerHTML ="<br>" + voter + " is voting for " + votee;
+    }
+    if(message.indexOf("#RESULT:")==0) {
+      round="#result";
+      var result = message.split(":")[1];
+      if(result=="WIN") {
+        document.body.innerHTML  = "The Mantris and the Sipahi have won";
+      } else {
+        document.body.innerHTML = "The Chor wins";
+      }
+      ws.close();
     }
   }
   </script>
